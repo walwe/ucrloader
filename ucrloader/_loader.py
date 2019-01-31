@@ -23,34 +23,37 @@ class UCRLoader(object):
         """
         return sorted(self._data_dirs.keys())
 
-    def load(self, name):
+    def load(self, name, z_norm=False):
         """
         Load dataset from disk
         :param name: name of dataset
         :return: UCRData object
         """
         try:
-            return UCRData.from_path(self._data_dirs[name])
+            return UCRData.from_path(self._data_dirs[name], z_norm)
         except KeyError:
             logging.error("Data{} not available in {}".format(name, self._path))
 
 
 class UCRData(object):
     """Single UCR Dataset"""
-    def __init__(self, name: str, train_data, test_data):
+    def __init__(self, name: str, train_data, train_labels, test_data, test_labels):
         """
         :param name: Name of dataset
         :param train_data: train data array
         :param test_data: test data array
         """
         self.name = name
-        self._train_data = train_data
-        self._test_data = test_data
+        self.train_data = train_data
+        self.train_labels = train_labels
+        self.test_data = test_data
+        self.test_labels = test_labels
 
     @classmethod
-    def from_path(cls, path: str):
+    def from_path(cls, path: str, z_norm=False):
         """
         Load single dataset add given path
+        :param z_norm: Z-normalize data?
         :param path: Path to single dataset
         :return: UCRData
         """
@@ -66,33 +69,44 @@ class UCRData(object):
         train_data = cls._read_file(train_fn)
         test_data = cls._read_file(test_fn)
 
-        return cls(name, train_data, test_data)
+        train_labels, train_data = cls._split(train_data)
+        test_labels, test_data = cls._split(test_data)
+
+        if z_norm:
+            train_data, test_data = cls._z_norm(train_data, test_data)
+
+        return cls(name, train_data, train_labels, test_data, test_labels)
+
+    @staticmethod
+    def _split(data):
+        """Split into labels and values. First column are labels"""
+        labels = np.array(list(
+            map(int, data.values[:, 0])
+        ))
+        values = data.values[:, 1:]
+        return labels, values
 
     @staticmethod
     def _read_file(file_name):
         df = pd.read_csv(file_name, header=None)
         return df
 
-    @property
-    def train_data(self):
-        """Train data as numpy array"""
-        return self._train_data.values[:, 1:]
+    @staticmethod
+    def _z_norm(train_data, test_data):
+        axis = 0
+        ddof = 0
 
-    @property
-    def train_labels(self):
-        """Train labels as numpy array"""
-        return np.array(list(
-            map(int, self._train_data.values[:, 0])
-        ))
+        # Calculate mean and std on train data
+        mns = np.nanmean(train_data)
+        sstd = np.nanstd(train_data)
 
-    @property
-    def test_data(self):
-        """Test data as numpy array"""
-        return self._test_data.values[:, 1:]
+        def norm(a):
+            a = np.asanyarray(a)
+            if axis and mns.ndim < a.ndim:
+                return ((a - np.expand_dims(mns, axis=axis)) /
+                        np.expand_dims(sstd, axis=axis))
+            else:
+                return (a - mns) / sstd
 
-    @property
-    def test_labels(self):
-        """Test labels as numpy array"""
-        return np.array(list(
-            map(int, self._test_data.values[:, 0])
-        ))
+        return norm(train_data), norm(test_data)
+
