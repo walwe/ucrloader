@@ -20,3 +20,18 @@ for name in loader.names:
     print(data.test_labels)
     print(data.test_data)
 ```
+
+
+## Adjusted labels
+
+Some of the datasets contain labels not in the range `[0 - X]`.
+The UCRData object therefore contains adjusted labels e.g. as required by pytorch.
+```
+data.test_labels_adjusted
+data.train_labels_adjusted
+```
+
+The original label can be obtained by accessing `UCRData.unique_labels`: 
+```
+data.unique_labels[data.test_labels_adjusted[0]]
+```

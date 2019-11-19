@@ -37,17 +37,49 @@ class UCRLoader(object):
 
 class UCRData(object):
     """Single UCR Dataset"""
-    def __init__(self, name: str, train_data, train_labels, test_data, test_labels):
+    def __init__(self, name: str,
+                 train_data: np.array, train_labels: np.array,
+                 test_data: np.array, test_labels: np.array):
         """
         :param name: Name of dataset
         :param train_data: train data array
+        :param train_labels: train label array
         :param test_data: test data array
+        :param test_labels: test label array
         """
         self.name = name
         self.train_data = train_data
         self.train_labels = train_labels
         self.test_data = test_data
         self.test_labels = test_labels
+
+        # Calculate unique labels
+        self.unique_labels = np.unique(np.concatenate(
+            (np.unique(self.train_labels), np.unique(self.test_labels))
+        )).tolist()
+
+        self._test_label_adjusted = None
+        self._train_label_adjusted = None
+
+    @property
+    def test_labels_adjusted(self):
+        """
+        Adjusted test labels in range [0 - len(labels)-1]
+        :return: List of labels
+        """
+        if self._test_label_adjusted is None:
+            self._test_label_adjusted = np.array([self.unique_labels.index(v) for v in self.test_labels])
+        return self._test_label_adjusted
+
+    @property
+    def train_labels_adjusted(self):
+        """
+        Adjusted train labels in range [0 - len(labels)-1]
+        :return: List of labels
+        """
+        if self._train_label_adjusted is None:
+            self._train_label_adjusted = np.array([self.unique_labels.index(v) for v in self.train_labels])
+        return self._train_label_adjusted
 
     @classmethod
     def from_path(cls, path: str, z_norm=False):
