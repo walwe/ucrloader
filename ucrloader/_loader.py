@@ -82,11 +82,12 @@ class UCRData(object):
         return self._train_label_adjusted
 
     @classmethod
-    def from_path(cls, path: str, z_norm=False):
+    def from_path(cls, path: str, z_norm=False, nan_padding=True):
         """
         Load single dataset add given path
         :param z_norm: Z-normalize data?
         :param path: Path to single dataset
+        :param nan_padding: Replace nan values with zero
         :return: UCRData
         """
         path = Path(path)
@@ -103,6 +104,10 @@ class UCRData(object):
 
         train_labels, train_data = cls._split(train_data)
         test_labels, test_data = cls._split(test_data)
+
+        if nan_padding:
+            train_data = np.nan_to_num(train_data)
+            test_data = np.nan_to_num(test_data)
 
         if z_norm:
             train_data, test_data = cls._z_norm(train_data, test_data)
